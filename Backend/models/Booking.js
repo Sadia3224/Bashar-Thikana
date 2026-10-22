@@ -1,0 +1,3 @@
+const mongoose=require("mongoose");
+const schema=new mongoose.Schema({consumer:{type:mongoose.Schema.Types.ObjectId,ref:"User",required:true},property:{type:mongoose.Schema.Types.ObjectId,ref:"Property",required:true},roomId:mongoose.Schema.Types.ObjectId,moveInDate:Date,message:String,requestType:{type:String,enum:["booking","visit"],default:"booking"},status:{type:String,enum:["requested","under-review","accepted","temporary-hold","confirmed","rejected","withdrawn","cancelled","completed"],default:"requested"},holdExpiresAt:Date},{timestamps:true});
+module.exports=mongoose.model("Booking",schema);

@@ -1,0 +1,4 @@
+import { NavLink } from "react-router-dom";
+import Icon from "../common/Icon";
+const links = [["/admin/dashboard","Overview","home"],["/admin/properties","Property reviews","shield"],["/admin/users","Users & owners","users"],["/admin/reports","Reports","clock"]];
+export default function AdminSidebar(){return <aside className="app-sidebar admin-sidebar"><div className="sidebar-wordmark"><span>Bashar</span><strong>Thikana</strong></div><div className="sidebar-kicker">ADMIN / TRUST & SAFETY</div><nav>{links.map(([to,label,icon])=><NavLink key={to} to={to} className={({isActive})=>isActive?"side-link active":"side-link"}><Icon name={icon}/><span>{label}</span></NavLink>)}</nav><div className="sidebar-foot"><strong>Verification is specific</strong><p>Identity, authority to advertise and current vacancy are separate claims.</p></div></aside>}

@@ -1,0 +1,345 @@
+/* Auth, About, Contact and Not Found pages. */
+.auth-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  min-height: 100vh;
+}
+
+.auth-visual {
+  position: relative;
+  background: var(--color-primary);
+}
+
+.auth-visual img,
+.auth-visual .img-fallback {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.auth-visual::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(10, 34, 21, 0.25) 0%, rgba(10, 34, 21, 0.85) 100%);
+}
+
+.auth-visual-copy {
+  position: absolute;
+  left: 44px;
+  right: 44px;
+  bottom: 44px;
+  z-index: 1;
+  color: rgba(255, 255, 255, 0.88);
+  display: grid;
+  gap: 14px;
+  font-size: 17px;
+  max-width: 440px;
+}
+
+.auth-panel {
+  display: grid;
+  place-items: center;
+  padding: 40px 24px;
+  background: var(--color-bg);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 500px;
+}
+
+.auth-card h1 {
+  font-size: 30px;
+  margin-bottom: 6px;
+}
+
+.auth-card > .muted {
+  margin-bottom: 26px;
+}
+
+.auth-logo-mobile {
+  display: none;
+  margin-bottom: 24px;
+}
+
+.auth-switch {
+  margin-top: 20px;
+  text-align: center;
+  font-size: 14.5px;
+  color: var(--color-text-muted);
+}
+
+.auth-switch a {
+  color: var(--color-primary);
+  font-weight: 650;
+}
+
+.role-picker {
+  display: grid;
+  gap: 10px;
+}
+
+.role-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.role-option {
+  position: relative;
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--color-border-strong);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.role-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.role-option svg {
+  color: var(--color-text-muted);
+  margin-bottom: 4px;
+}
+
+.role-option strong {
+  font-size: 15px;
+}
+
+.role-option span {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+.role-option:hover {
+  border-color: var(--color-primary);
+}
+
+.role-option.is-active {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.role-option.is-active svg {
+  color: var(--color-primary);
+}
+
+.role-option:has(input:focus-visible) {
+  outline: 3px solid color-mix(in srgb, var(--color-primary) 45%, transparent);
+  outline-offset: 2px;
+}
+
+/* About */
+.about-hero {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 48px;
+  align-items: center;
+  margin-bottom: 56px;
+}
+
+.about-hero h1 {
+  font-size: clamp(30px, 4.4vw, 46px);
+  margin: 10px 0 18px;
+}
+
+.about-hero p {
+  color: var(--color-text-muted);
+  font-size: 16px;
+  margin-bottom: 14px;
+}
+
+.about-img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.about-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.value-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.value-card {
+  padding: 24px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.value-card svg {
+  color: var(--color-primary);
+  margin-bottom: 12px;
+}
+
+.value-card h3 {
+  font-size: 16.5px;
+  margin-bottom: 8px;
+}
+
+.value-card p {
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+
+.about-roles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.about-roles article {
+  padding: 26px;
+  border-radius: var(--radius-md);
+  background: var(--color-primary-soft);
+}
+
+.about-roles svg {
+  color: var(--color-primary);
+}
+
+.about-roles h3 {
+  margin: 12px 0 8px;
+  font-size: 18px;
+}
+
+.about-roles p {
+  color: #39493f;
+  font-size: 14.5px;
+}
+
+/* Contact */
+.contact-layout {
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  gap: 32px;
+  align-items: start;
+}
+
+.contact-info {
+  display: grid;
+  gap: 14px;
+}
+
+.contact-item {
+  display: flex;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.contact-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-sm);
+  display: grid;
+  place-items: center;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.contact-item p {
+  color: var(--color-text-muted);
+  font-size: 14px;
+  margin-top: 2px;
+  overflow-wrap: anywhere;
+}
+
+.contact-layout .panel {
+  padding: 28px;
+}
+
+/* Not found */
+.not-found {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: 10px;
+  min-height: 50vh;
+  align-content: center;
+}
+
+.not-found > svg {
+  color: var(--color-accent);
+}
+
+.not-found-code {
+  font-size: 56px;
+  font-weight: 800;
+  color: var(--color-primary);
+  line-height: 1;
+}
+
+.not-found h1 {
+  font-size: 28px;
+}
+
+@media (max-width: 960px) {
+  .auth-page {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-visual {
+    display: none;
+  }
+
+  .auth-logo-mobile {
+    display: block;
+  }
+
+  .about-hero,
+  .contact-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .value-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .about-roles {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .role-options,
+  .value-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .role-option {
+    grid-template-columns: auto 1fr;
+    column-gap: 12px;
+    align-items: center;
+  }
+
+  .role-option svg {
+    grid-row: span 2;
+    margin: 0;
+  }
+
+  .contact-layout .panel {
+    padding: 20px;
+  }
+}
