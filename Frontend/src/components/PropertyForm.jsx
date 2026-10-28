@@ -4,7 +4,7 @@ import { Field, fieldProps, focusFirstError } from "./Field";
 import PropertyImage from "./PropertyImage";
 import { DISTRICTS, areasFor, isAreaInDistrict } from "../data/locations";
 import { FACILITIES, FURNISHING_OPTIONS, GENDER_OPTIONS, PROPERTY_TYPES } from "../data/options";
-import { compressImage } from "../utils/images";
+import { uploadPropertyImages } from "../api/propertyApi";
 import { todayISO } from "../utils/format";
 
 const MAX_IMAGES = 8;
@@ -165,7 +165,7 @@ export default function PropertyForm({ property, onSubmit, onCancel, submitLabel
     setImageError("");
     setUploading(true);
     try {
-      addImages(await Promise.all(files.map((file) => compressImage(file))));
+      addImages(await uploadPropertyImages(files));
     } catch (error) {
       setImageError(error.message);
     } finally {
@@ -335,7 +335,7 @@ export default function PropertyForm({ property, onSubmit, onCancel, submitLabel
 
       <section className="form-section">
         <h2>Photos</h2>
-        <p className="muted small">Add up to {MAX_IMAGES} photos. The first photo is used as the cover. Uploaded files are resized and stored in this browser only.</p>
+        <p className="muted small">Add up to {MAX_IMAGES} photos. The first photo is used as the cover. Uploads must be JPG, PNG or WebP, up to 5 MB each.</p>
         <div className="image-inputs">
           <div className="input-icon grow">
             <Link2 size={17} aria-hidden="true" />

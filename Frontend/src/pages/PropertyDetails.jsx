@@ -37,7 +37,7 @@ function roomFacts(property) {
 export default function PropertyDetails() {
   const { id } = useParams();
   const { user } = useAuth();
-  const { getProperty, getUser, publicProperties } = useProperties();
+  const { getProperty, getUser, publicProperties, loading } = useProperties();
   const [modal, setModal] = useState(null);
 
   const property = getProperty(id);
@@ -53,6 +53,8 @@ export default function PropertyDetails() {
       .sort((a, b) => score(b) - score(a) || Math.abs(a.rent - property.rent) - Math.abs(b.rent - property.rent))
       .slice(0, 3);
   }, [property, publicProperties]);
+
+  if (loading) return <div className="container page-pad" aria-busy="true" />;
 
   if (!visible) {
     return (

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { Building2, Loader2, Search, ShieldCheck } from "lucide-react";
+import { Building2, Loader2, Search } from "lucide-react";
 import AuthShell from "./AuthShell";
 import { Field, PasswordInput, fieldProps, focusFirstError } from "../components/Field";
 import { useAuth } from "../context/AuthContext";
@@ -11,7 +11,6 @@ import { passwordProblem, validateContact } from "../utils/validation";
 const ROLE_CHOICES = [
   { value: "client", label: "Client", icon: Search, text: "I'm looking for a room, bed or flat." },
   { value: "owner", label: "Owner", icon: Building2, text: "I want to list and manage properties." },
-  { value: "admin", label: "Admin", icon: ShieldCheck, text: "Review listings and manage users." },
 ];
 
 export default function Register() {
@@ -69,11 +68,6 @@ export default function Register() {
               </label>
             ))}
           </div>
-          {form.role === "admin" && (
-            <p className="alert alert-warning small">
-              Admin self-registration exists only so this demo can be explored. A real platform would never let anyone choose the admin role.
-            </p>
-          )}
         </fieldset>
         <Field label="Full name" htmlFor="name" error={errors.name} required>
           <input autoComplete="name" value={form.name} onChange={set("name")} {...fieldProps("name", errors.name)} />

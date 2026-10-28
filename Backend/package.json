@@ -1,10 +1,10 @@
 {
   "name": "bashar-thikana-backend",
   "version": "1.0.0",
-  "main": "server.js",
+  "main": "src/server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
     "seed": "node scripts/seedDemo.js"
   },
   "dependencies": {
@@ -20,5 +20,10 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
+  },
+  "type": "module",
+  "description": "Bashar Thikana REST API (Express 5 + MongoDB, ESM)",
+  "engines": {
+    "node": ">=20"
   }
 }

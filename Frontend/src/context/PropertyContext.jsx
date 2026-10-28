@@ -1,22 +1,55 @@
-import { createContext, useCallback, useContext, useEffect, useMemo } from "react";
-import { MOCK_PROPERTIES, MOCK_REPORTS } from "../data/properties";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { MOCK_REPORTS } from "../data/properties";
+import * as propertyApi from "../api/propertyApi";
 import { countActiveFilters, filtersToParams, isPublic } from "../utils/filters";
 import { clearAll, uid, usePersistentState, wait } from "../utils/storage";
 import { useAuth } from "./AuthContext";
+import { useToast } from "./ToastContext";
 
-// Local stand-in for a listings API: properties, favourites, requests, reports and recent searches,
-// all persisted to localStorage. Nothing here reaches a server.
+// Listings come from the backend API. Favourites, requests, reports and recent searches are still
+// kept in localStorage until their endpoints are connected.
 const PropertyContext = createContext(null);
 
 const GUEST = "guest";
 
+// Later lists win, so an owner's or admin's copy replaces the public copy of the same listing.
+const mergeById = (lists) => {
+  const byId = new Map();
+  lists.flat().forEach((p) => byId.set(p.id, { ...byId.get(p.id), ...p }));
+  return [...byId.values()];
+};
+
 export function PropertyProvider({ children }) {
   const { user, users } = useAuth();
-  const [properties, setProperties] = usePersistentState("properties", MOCK_PROPERTIES);
+  const { notify } = useToast();
+  const [properties, setProperties] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [requests, setRequests] = usePersistentState("requests", []);
   const [reports, setReports] = usePersistentState("reports", MOCK_REPORTS);
   const [favorites, setFavorites] = usePersistentState("favorites", {});
   const [searches, setSearches] = usePersistentState("searches", {});
+
+  const role = user?.role;
+
+  // Public listings for everyone, plus the owner's own listings or the admin review queue.
+  const refreshProperties = useCallback(async () => {
+    const loaders = [propertyApi.fetchPublicProperties()];
+    if (role === "owner") loaders.push(propertyApi.fetchMyProperties());
+    if (role === "admin") loaders.push(propertyApi.fetchPendingProperties());
+    try {
+      setProperties(mergeById(await Promise.all(loaders)));
+      setLoadError("");
+    } catch (error) {
+      setLoadError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [role]);
+
+  useEffect(() => {
+    refreshProperties();
+  }, [refreshProperties, user?.id]);
 
   const favoriteKey = user?.id || GUEST;
   const favoriteIds = useMemo(() => favorites[favoriteKey] || [], [favorites, favoriteKey]);
@@ -34,55 +67,77 @@ export function PropertyProvider({ children }) {
   const publicProperties = useMemo(() => properties.filter(isPublic), [properties]);
 
   const getProperty = useCallback((id) => properties.find((p) => p.id === id), [properties]);
-  const getUser = useCallback((id) => users.find((u) => u.id === id), [users]);
 
-  const addProperty = useCallback(
-    async (data, ownerId) => {
-      await wait(600);
-      const property = {
-        ...data,
-        id: uid("p"),
-        ownerId,
-        status: "pending",
-        verified: false,
-        occupancy: "available",
-        rejectionReason: "",
-        createdAt: new Date().toISOString(),
-      };
-      setProperties((prev) => [property, ...prev]);
-      return property;
-    },
-    [setProperties]
+  // Owners are known from the admin user list, the signed-in account, or the summary sent with each listing.
+  const getUser = useCallback(
+    (id) => users.find((u) => u.id === id) || (user?.id === id ? user : null) || properties.find((p) => p.owner?.id === id)?.owner,
+    [users, user, properties]
   );
 
-  // An owner's edit sends the listing back to the review queue, mirroring how moderation would work.
-  const updateProperty = useCallback(
-    async (id, data) => {
-      await wait(600);
-      setProperties((prev) => prev.map((p) => (p.id === id ? { ...p, ...data, status: "pending", verified: false, rejectionReason: "" } : p)));
-    },
-    [setProperties]
-  );
+  const replaceProperty = useCallback((saved) => setProperties((prev) => prev.map((p) => (p.id === saved.id ? { ...p, ...saved } : p))), []);
 
   const patchProperty = useCallback(
     (id, patch) => setProperties((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p))),
-    [setProperties]
+    []
   );
 
+  const addProperty = useCallback(async (data) => {
+    const property = await propertyApi.createProperty(data);
+    setProperties((prev) => [property, ...prev]);
+    return property;
+  }, []);
+
+  // The server sends an owner's edit back to the review queue and returns the updated listing.
+  const updateProperty = useCallback(
+    async (id, data) => {
+      const property = await propertyApi.updateProperty(id, data);
+      replaceProperty(property);
+      return property;
+    },
+    [replaceProperty]
+  );
+
+  // Applied on screen first, rolled back if the server refuses.
+  const optimistic = useCallback(
+    async (id, patch, request) => {
+      const before = properties.find((p) => p.id === id);
+      patchProperty(id, patch);
+      try {
+        return await request();
+      } catch (error) {
+        if (before) replaceProperty(before);
+        notify(error.message, "error");
+        return null;
+      }
+    },
+    [properties, patchProperty, replaceProperty, notify]
+  );
+
+  const setOccupancy = useCallback(
+    (id, occupancy) => optimistic(id, { occupancy }, () => propertyApi.updateAvailability(id, { occupancy })),
+    [optimistic]
+  );
+
+  const reviewProperty = useCallback(
+    (id, status, rejectionReason = "") =>
+      optimistic(id, { status, rejectionReason, ...(status !== "approved" && { verified: false }) }, async () => {
+        const saved = await propertyApi.reviewProperty(id, status, rejectionReason);
+        // Only take the moderation fields back, so a verified badge set right after approval is kept.
+        patchProperty(id, { status: saved.status, isPublished: saved.isPublished, rejectionReason: saved.rejectionReason });
+        return saved;
+      }),
+    [optimistic, patchProperty]
+  );
+
+  // No delete or verify-listing endpoint yet: these change the list on screen until the admin API adds them.
+  const setVerified = useCallback((id, verified) => patchProperty(id, { verified }), [patchProperty]);
   const deleteProperty = useCallback(
     (id) => {
       setProperties((prev) => prev.filter((p) => p.id !== id));
       setFavorites((prev) => Object.fromEntries(Object.entries(prev).map(([key, ids]) => [key, ids.filter((pid) => pid !== id)])));
     },
-    [setProperties, setFavorites]
+    [setFavorites]
   );
-
-  const setOccupancy = useCallback((id, occupancy) => patchProperty(id, { occupancy }), [patchProperty]);
-  const reviewProperty = useCallback(
-    (id, status, rejectionReason = "") => patchProperty(id, { status, rejectionReason, ...(status !== "approved" && { verified: false }) }),
-    [patchProperty]
-  );
-  const setVerified = useCallback((id, verified) => patchProperty(id, { verified }), [patchProperty]);
 
   const isFavorite = useCallback((id) => favoriteIds.includes(id), [favoriteIds]);
   const toggleFavorite = useCallback(
@@ -157,10 +212,13 @@ export function PropertyProvider({ children }) {
     () => ({
       properties,
       publicProperties,
+      loading,
+      loadError,
       requests,
       reports,
       favoriteIds,
       recentSearches,
+      refreshProperties,
       getProperty,
       getUser,
       addProperty,
@@ -181,9 +239,9 @@ export function PropertyProvider({ children }) {
       resetDemoData,
     }),
     [
-      properties, publicProperties, requests, reports, favoriteIds, recentSearches, getProperty, getUser, addProperty, updateProperty,
-      deleteProperty, setOccupancy, reviewProperty, setVerified, isFavorite, toggleFavorite, createRequest, updateRequestStatus,
-      createReport, updateReportStatus, recordSearch, removeSearch, clearSearches, resetDemoData,
+      properties, publicProperties, loading, loadError, requests, reports, favoriteIds, recentSearches, refreshProperties, getProperty,
+      getUser, addProperty, updateProperty, deleteProperty, setOccupancy, reviewProperty, setVerified, isFavorite, toggleFavorite,
+      createRequest, updateRequestStatus, createReport, updateReportStatus, recordSearch, removeSearch, clearSearches, resetDemoData,
     ]
   );
 

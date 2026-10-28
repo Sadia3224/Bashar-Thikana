@@ -10,11 +10,13 @@ import { useToast } from "../../context/ToastContext";
 export default function OwnerPropertyEditor() {
   const { id } = useParams();
   const { user } = useAuth();
-  const { getProperty, addProperty, updateProperty } = useProperties();
+  const { getProperty, addProperty, updateProperty, loading } = useProperties();
   const { notify } = useToast();
   const navigate = useNavigate();
   const editing = Boolean(id);
   const property = editing ? getProperty(id) : null;
+
+  if (editing && loading) return null;
 
   if (editing && (!property || property.ownerId !== user.id)) {
     return (
@@ -29,7 +31,7 @@ export default function OwnerPropertyEditor() {
       await updateProperty(id, data);
       notify("Changes saved and sent for admin review.");
     } else {
-      await addProperty(data, user.id);
+      await addProperty(data);
       notify("Property submitted for admin review.");
     }
     navigate("/owner/properties");

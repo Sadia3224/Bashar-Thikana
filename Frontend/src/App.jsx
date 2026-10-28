@@ -34,7 +34,8 @@ import AdminProfile from "./dashboards/admin/AdminProfile";
 import { ROLES } from "./data/options";
 
 function DashboardRedirect() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  if (loading) return null;
   return <Navigate to={user ? ROLES[user.role].home : "/login"} replace />;
 }
 

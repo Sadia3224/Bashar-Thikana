@@ -47,7 +47,7 @@ export default function Footer() {
       </div>
       <div className="container footer-bottom">
         <span>© {new Date().getFullYear()} Bashar Thikana</span>
-        <span>Frontend demo. Listings, accounts and requests are sample data stored only in this browser.</span>
+        <span>Demo project. Accounts and listings are stored on the server; requests and reports are still saved in this browser only.</span>
       </div>
     </footer>
   );

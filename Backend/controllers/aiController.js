@@ -1,1 +1,0 @@
-exports.parseAccommodationQuery=(req,res)=>res.json({originalQuery:req.body.query||"",interpretedFilters:{},status:"placeholder",message:"AI provider not connected yet. Verified property data must come from the database."});

@@ -1,13 +1,13 @@
-const dotenv = require("dotenv");
-const mongoose = require("mongoose");
-const connectDB = require("../config/db");
-const User = require("../models/User");
-const Property = require("../models/Property");
-const Booking = require("../models/Booking");
-const Report = require("../models/Report");
-const Notification = require("../models/Notification");
+import mongoose from "mongoose";
+import connectDB from "../src/config/db.js";
+import User from "../src/models/User.js";
+import Property from "../src/models/Property.js";
+import Booking from "../src/models/Booking.js";
+import Report from "../src/models/Report.js";
+import Notification from "../src/models/Notification.js";
 
-dotenv.config();
+const photo = (id) => `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=1200&q=70`;
+const daysFromNow = (days) => new Date(Date.now() + days * 86400000);
 
 async function run() {
   await connectDB();
@@ -19,84 +19,93 @@ async function run() {
       Property.deleteMany({}),
       User.deleteMany({ email: { $regex: /@basharthikana\.local$/ } }),
     ]);
+    // Rebuild indexes so the 2dsphere index matches the current schema.
+    await Property.syncIndexes();
 
-    const admin = await User.create({
-      name: "Amina Rahman", email: "admin@basharthikana.local", phone: "01700000001",
-      password: "Admin123!", role: "admin", isVerified: true,
-    });
-    const owner = await User.create({
-      name: "Mahmud Karim", email: "owner@basharthikana.local", phone: "01700000002",
-      password: "Owner123!", role: "user", isVerified: true,
-    });
-    const owner2 = await User.create({
-      name: "Farzana Chowdhury", email: "owner2@basharthikana.local", phone: "01700000004",
-      password: "Owner123!", role: "user", isVerified: true,
-    });
-    const consumer = await User.create({
-      name: "Nafis Ahmed", email: "consumer@basharthikana.local", phone: "01700000003",
-      password: "Consumer123!", role: "consumer", isVerified: true,
-    });
+    // User.create (not insertMany) so the pre-save hook hashes each password.
+    const [, owner, owner2, consumer] = await User.create([
+      { name: "Amina Rahman", email: "admin@basharthikana.local", phone: "01700000001", password: "Admin123!", role: "admin", isVerified: true },
+      { name: "Mahmud Karim", email: "owner@basharthikana.local", phone: "01700000002", password: "Owner123!", role: "user", isVerified: true, about: "Owner of two family buildings in Nasirabad and Khulshi." },
+      { name: "Farzana Chowdhury", email: "owner2@basharthikana.local", phone: "01700000004", password: "Owner123!", role: "user", isVerified: false },
+      { name: "Nafis Ahmed", email: "consumer@basharthikana.local", phone: "01700000003", password: "Consumer123!", role: "consumer", isVerified: true },
+    ]);
 
+    const approved = { verificationStatus: "approved", isPublished: true };
+    const pending = { verificationStatus: "pending", isPublished: false };
+
+    // Coordinates are GeoJSON order: [longitude, latitude].
     const propertyData = [
       {
-        owner: owner._id, title: "Nasirabad Garden Flat", description: "A bright two-bedroom apartment with cross ventilation, balcony, lift access and a quiet residential setting. Illustrative demo listing.",
-        propertyType: "flat", address: "Road 4, Nasirabad Housing Society, Chattogram", area: "Nasirabad", city: "Chattogram",
-        location: { type: "Point", coordinates: [91.8135, 22.3677] }, monthlyRent: 18500, deposit: 18500,
-        suitableFor: ["family", "professional"], facilities: ["Lift", "Parking", "Gas", "Balcony", "Security"],
-        images: ["/demo/property-1.svg", "/demo/property-1b.svg"], availableUnits: 1, verificationStatus: "approved", isPublished: true,
-        rooms: [{ roomName: "Whole flat", roomType: "apartment", monthlyRent: 18500, totalCapacity: 1, availableCapacity: 1 }],
+        ...approved, verified: true, owner: owner._id, title: "Bright family flat near Nasirabad Housing",
+        description: "A well-kept three-bedroom flat on the fourth floor of a quiet residential building, with good morning light and a small balcony.",
+        district: "Chattogram", area: "Nasirabad", address: "Road 2, Nasirabad Housing Society",
+        location: { type: "Point", coordinates: [91.8135, 22.3677] },
+        type: "full-flat", gender: "any", rent: 26000, rooms: 3, bathrooms: 2, totalBeds: 3, availableBeds: 3,
+        washroom: "attached", balcony: true, furnishing: "semi-furnished", availableFrom: daysFromNow(10),
+        facilities: ["Gas line", "Lift", "Security guard", "Generator / IPS backup", "24/7 water supply", "Parking"],
+        images: [photo("1522708323590-d24dbb6b0267"), photo("1484154218962-a197022b5858"), photo("1505691938895-1758d7feb511")],
       },
       {
-        owner: owner2._id, title: "GEC Corner Shared Home", description: "A furnished shared home near everyday services with Wi-Fi, common lounge and individual storage. Illustrative demo listing.",
-        propertyType: "shared-room", address: "O.R. Nizam Road, GEC, Chattogram", area: "GEC", city: "Chattogram",
-        location: { type: "Point", coordinates: [91.8188, 22.3594] }, monthlyRent: 6500, deposit: 3000,
-        suitableFor: ["bachelor", "student", "professional"], facilities: ["Wi-Fi", "Furnished", "Water", "Security", "Cleaning"],
-        images: ["/demo/property-2.svg", "/demo/property-2b.svg"], availableUnits: 2, verificationStatus: "approved", isPublished: true,
-        rooms: [{ roomName: "Shared Room A", roomType: "shared", monthlyRent: 6500, totalCapacity: 3, availableCapacity: 2 }],
+        ...approved, owner: owner2._id, title: "Shared room for students near GEC Circle",
+        description: "A furnished shared room in a clean student mess with Wi-Fi, meal service and individual storage for every bed.",
+        district: "Chattogram", area: "GEC Circle", address: "O.R. Nizam Road, GEC",
+        location: { type: "Point", coordinates: [91.8188, 22.3594] },
+        type: "shared-room", gender: "male", rent: 4500, rooms: 1, bathrooms: 1, totalBeds: 3, availableBeds: 2,
+        washroom: "shared", balcony: false, furnishing: "furnished", availableFrom: daysFromNow(0),
+        facilities: ["Wi-Fi", "Meal service", "Security guard", "24/7 water supply"],
+        images: [photo("1555854877-bab0e564b8d5"), photo("1630699144867-37acec97df5a")],
       },
       {
-        owner: owner._id, title: "Agrabad Compact Studio", description: "A compact studio designed for a single working professional, with attached bath and kitchenette. Illustrative demo listing.",
-        propertyType: "studio", address: "Commercial Area, Agrabad, Chattogram", area: "Agrabad", city: "Chattogram",
-        location: { type: "Point", coordinates: [91.8018, 22.3266] }, monthlyRent: 12000, deposit: 12000,
-        suitableFor: ["professional", "bachelor"], facilities: ["Attached bath", "Kitchen", "Security", "Generator"],
-        images: ["/demo/property-3.svg"], availableUnits: 1, verificationStatus: "approved", isPublished: true,
-        rooms: [{ roomName: "Studio 3B", roomType: "studio", monthlyRent: 12000, totalCapacity: 1, availableCapacity: 1 }],
+        ...approved, verified: true, owner: owner._id, title: "Private room with balcony in Khulshi",
+        description: "A furnished single room with an attached washroom and a balcony, in a family flat with kitchen access for working professionals.",
+        district: "Chattogram", area: "Khulshi", address: "South Khulshi, Road 5",
+        location: { type: "Point", coordinates: [91.8087, 22.3711] },
+        type: "single-room", gender: "female", rent: 9000, rooms: 1, bathrooms: 1, totalBeds: 1, availableBeds: 1,
+        washroom: "attached", balcony: true, furnishing: "furnished", availableFrom: daysFromNow(5),
+        facilities: ["Wi-Fi", "Kitchen access", "Geyser", "CCTV"],
+        images: [photo("1540518614846-7eded433c457"), photo("1536376072261-38c75010e6c9")],
       },
       {
-        owner: owner2._id, title: "Khulshi Family Apartment", description: "Spacious three-bedroom family apartment with parking and a separate dining area. Illustrative demo listing.",
-        propertyType: "flat", address: "South Khulshi, Chattogram", area: "Khulshi", city: "Chattogram",
-        location: { type: "Point", coordinates: [91.8087, 22.3711] }, monthlyRent: 28000, deposit: 28000,
-        suitableFor: ["family"], facilities: ["Parking", "Lift", "Generator", "Balcony", "CCTV"],
-        images: ["/demo/property-4.svg"], availableUnits: 1, verificationStatus: "approved", isPublished: true,
-        rooms: [{ roomName: "Whole flat", roomType: "apartment", monthlyRent: 28000, totalCapacity: 1, availableCapacity: 1 }],
+        ...approved, owner: owner2._id, title: "Bed in ladies' hostel, Dhanmondi",
+        description: "Bed-wise rental in a managed ladies' hostel with meals, laundry and a resident warden. Close to bus routes and coaching centres.",
+        district: "Dhaka", area: "Dhanmondi", address: "Road 27 (old), Dhanmondi",
+        location: { type: "Point", coordinates: [90.3742, 23.7465] },
+        type: "bed", gender: "female", rent: 6500, rooms: 6, bathrooms: 4, totalBeds: 18, availableBeds: 4,
+        washroom: "shared", balcony: false, furnishing: "furnished", availableFrom: daysFromNow(0),
+        facilities: ["Wi-Fi", "Meal service", "Laundry", "Security guard", "CCTV"],
+        images: [photo("1595526114035-0d45ed16cfbf"), photo("1616594039964-ae9021a400a0")],
       },
       {
-        owner: owner._id, title: "Muradpur Single Room", description: "Single room with attached washroom submitted for verification. Illustrative demo listing.",
-        propertyType: "single-room", address: "Muradpur, Chattogram", area: "Muradpur", city: "Chattogram",
-        location: { type: "Point", coordinates: [91.8361, 22.3717] }, monthlyRent: 8000, deposit: 4000,
-        suitableFor: ["bachelor", "student", "professional"], facilities: ["Attached bath", "Water", "Security"],
-        images: ["/demo/property-5.svg"], availableUnits: 1, verificationStatus: "pending", isPublished: false,
+        ...pending, owner: owner._id, title: "Single room near Muradpur bus stand",
+        description: "Single room with attached washroom submitted for verification. Suits a student or job holder who wants a quiet place.",
+        district: "Chattogram", area: "Muradpur", address: "Muradpur, Chattogram",
+        location: { type: "Point", coordinates: [91.8361, 22.3717] },
+        type: "single-room", gender: "male", rent: 8000, rooms: 1, bathrooms: 1, totalBeds: 1, availableBeds: 1,
+        washroom: "attached", balcony: false, furnishing: "unfurnished", availableFrom: daysFromNow(14),
+        facilities: ["24/7 water supply", "Near main road"],
+        images: [photo("1598928506311-c55ded91a20c")],
       },
       {
-        owner: owner2._id, title: "Panchlaish Sublet", description: "A sublet room with a shared kitchen currently waiting for admin review. Illustrative demo listing.",
-        propertyType: "sublet", address: "Panchlaish, Chattogram", area: "Panchlaish", city: "Chattogram",
-        location: { type: "Point", coordinates: [91.8250, 22.3635] }, monthlyRent: 9000, deposit: 5000,
-        suitableFor: ["female", "professional", "student"], facilities: ["Wi-Fi", "Kitchen", "Balcony"],
-        images: ["/demo/property-6.svg"], availableUnits: 1, verificationStatus: "pending", isPublished: false,
+        ...pending, owner: owner2._id, title: "Two-bedroom flat in Uttara Sector 7",
+        description: "A two-bedroom flat with lift and parking that is waiting for admin review before it appears in search results.",
+        district: "Dhaka", area: "Uttara", address: "Sector 7, Uttara",
+        type: "full-flat", gender: "any", rent: 22000, rooms: 2, bathrooms: 2, totalBeds: 2, availableBeds: 2,
+        washroom: "attached", balcony: true, furnishing: "unfurnished", availableFrom: daysFromNow(20),
+        facilities: ["Lift", "Parking", "Generator / IPS backup"],
+        images: [photo("1502672260266-1c1ef2d93688")],
       },
     ];
 
-    const properties = await Property.insertMany(propertyData);
-    const [nasirabad, gec, agrabad] = properties;
+    const [nasirabad, gec, khulshi] = await Property.create(propertyData);
 
     await Booking.create([
-      { consumer: consumer._id, property: nasirabad._id, requestType: "visit", status: "requested", moveInDate: new Date(Date.now() + 8 * 86400000), message: "Can I visit after 5 PM?" },
-      { consumer: consumer._id, property: gec._id, requestType: "booking", status: "under-review", moveInDate: new Date(Date.now() + 15 * 86400000), message: "I need one seat from next month." },
-      { consumer: consumer._id, property: agrabad._id, requestType: "visit", status: "accepted", moveInDate: new Date(Date.now() + 20 * 86400000), message: "Please confirm a weekend visit." },
+      { consumer: consumer._id, property: nasirabad._id, requestType: "visit", status: "requested", moveInDate: daysFromNow(8), message: "Can I visit after 5 PM?" },
+      { consumer: consumer._id, property: gec._id, requestType: "booking", status: "under-review", moveInDate: daysFromNow(15), message: "I need one seat from next month." },
+      { consumer: consumer._id, property: khulshi._id, requestType: "visit", status: "accepted", moveInDate: daysFromNow(20), message: "Please confirm a weekend visit." },
     ]);
 
     await Report.create({
-      reportedBy: consumer._id, property: gec._id, reason: "Availability may be stale",
+      reportedBy: consumer._id, property: gec._id, reason: "Property is no longer available",
       details: "Consumer requested that the owner reconfirm the vacancy.", status: "open",
     });
 
@@ -109,4 +118,7 @@ async function run() {
   }
 }
 
-run().catch((error) => { console.error(error); process.exit(1); });
+run().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

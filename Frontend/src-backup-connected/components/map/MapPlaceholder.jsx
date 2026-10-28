@@ -1,1 +1,0 @@
-export default function MapPlaceholder(){return <div className="map"><div><b>Google Maps area</b><p>Address search, map pins and routes will be connected after the core database workflow works.</p></div></div>}
