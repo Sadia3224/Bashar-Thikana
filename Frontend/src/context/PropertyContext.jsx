@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { MOCK_REPORTS } from "../data/properties";
 import * as propertyApi from "../api/propertyApi";
+import * as paymentApi from "../api/paymentApi";
 import { countActiveFilters, filtersToParams, isPublic } from "../utils/filters";
 import { clearAll, uid, usePersistentState, wait } from "../utils/storage";
 import { useAuth } from "./AuthContext";
@@ -92,6 +93,21 @@ export function PropertyProvider({ children }) {
     async (id, data) => {
       const property = await propertyApi.updateProperty(id, data);
       replaceProperty(property);
+      return property;
+    },
+    [replaceProperty]
+  );
+
+  // Sends the owner to Stripe's hosted payment page for this listing's fee.
+  const payListingFee = useCallback(async (id) => {
+    window.location.assign(await paymentApi.startCheckout(id));
+  }, []);
+
+  // Called on the success page; the server double-checks the payment with Stripe.
+  const confirmListingPayment = useCallback(
+    async (sessionId) => {
+      const property = await paymentApi.confirmCheckout(sessionId);
+      if (property) replaceProperty(property);
       return property;
     },
     [replaceProperty]
@@ -223,6 +239,8 @@ export function PropertyProvider({ children }) {
       getUser,
       addProperty,
       updateProperty,
+      payListingFee,
+      confirmListingPayment,
       deleteProperty,
       setOccupancy,
       reviewProperty,
@@ -240,7 +258,7 @@ export function PropertyProvider({ children }) {
     }),
     [
       properties, publicProperties, loading, loadError, requests, reports, favoriteIds, recentSearches, refreshProperties, getProperty,
-      getUser, addProperty, updateProperty, deleteProperty, setOccupancy, reviewProperty, setVerified, isFavorite, toggleFavorite,
+      getUser, addProperty, updateProperty, payListingFee, confirmListingPayment, deleteProperty, setOccupancy, reviewProperty, setVerified, isFavorite, toggleFavorite,
       createRequest, updateRequestStatus, createReport, updateReportStatus, recordSearch, removeSearch, clearSearches, resetDemoData,
     ]
   );

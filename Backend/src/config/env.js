@@ -14,7 +14,11 @@ const env = {
   mongoUri: process.env.MONGODB_URI,
   jwtSecret: process.env.JWT_SECRET,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "7d",
-  clientUrl: process.env.CLIENT_URL || "http://localhost:5173",
+  clientUrl: (process.env.CLIENT_URL || "http://localhost:5173").replace(/\/+$/, ""),
+  // Optional: without a secret key the API still runs, but listing payments are disabled.
+  stripeSecretKey: process.env.STRIPE_SE_KEY || process.env.STRIPE_SECRET_KEY || "",
+  stripePublishableKey: process.env.STRIPE_PUB_KEY || process.env.STRIPE_PUBLISHABLE_KEY || "",
+  stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || "",
 };
 
 export const isProduction = env.nodeEnv === "production";

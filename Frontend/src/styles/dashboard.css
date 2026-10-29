@@ -552,6 +552,11 @@ a.request-title:hover {
   border-radius: 6px;
 }
 
+.listing-pay {
+  justify-self: start;
+  margin-top: 6px;
+}
+
 .listing-controls {
   display: grid;
   justify-items: end;

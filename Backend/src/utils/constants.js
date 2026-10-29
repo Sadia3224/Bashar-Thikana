@@ -13,3 +13,8 @@ export const OCCUPANCY = ["available", "occupied"];
 export const VERIFICATION_STATUSES = ["pending", "approved", "rejected", "changes-requested"];
 
 export const MAX_PROPERTY_IMAGES = 8;
+
+// One-time fee an owner pays to list a property, in whole Taka, by property type. Change amounts here.
+export const LISTING_FEES = Object.freeze({ bed: 100, "shared-room": 150, "single-room": 200, "full-flat": 500 });
+export const LISTING_FEE_CURRENCY = "bdt";
+export const PAYMENT_STATUSES = ["unpaid", "paid"];

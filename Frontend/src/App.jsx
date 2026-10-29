@@ -24,6 +24,7 @@ import OwnerOverview from "./dashboards/owner/OwnerOverview";
 import OwnerProperties from "./dashboards/owner/OwnerProperties";
 import OwnerPropertyEditor from "./dashboards/owner/OwnerPropertyEditor";
 import OwnerRequests from "./dashboards/owner/OwnerRequests";
+import OwnerPaymentResult from "./dashboards/owner/OwnerPaymentResult";
 import AdminLayout from "./dashboards/admin/AdminLayout";
 import AdminOverview from "./dashboards/admin/AdminOverview";
 import AdminUsers from "./dashboards/admin/AdminUsers";
@@ -75,6 +76,7 @@ export default function App() {
                 <Route path="properties" element={<OwnerProperties />} />
                 <Route path="properties/new" element={<OwnerPropertyEditor />} />
                 <Route path="properties/:id/edit" element={<OwnerPropertyEditor />} />
+                <Route path="payment/success" element={<OwnerPaymentResult />} />
                 <Route path="visits" element={<OwnerRequests key="visit" kind="visit" />} />
                 <Route path="contacts" element={<OwnerRequests key="contact" kind="contact" />} />
                 <Route path="profile" element={<ProfilePage />} />

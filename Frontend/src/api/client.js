@@ -19,7 +19,11 @@ export const setToken = (token) => {
   }
 };
 
-const api = axios.create({ baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api" });
+// Local dev talks to the backend on port 5000. A production build calls /api on its own domain,
+// and vercel.json forwards those requests to the hosted backend, so no build-time variable is needed.
+// VITE_API_URL, when set, still overrides both.
+const DEFAULT_API_URL = import.meta.env.PROD ? "/api" : "http://localhost:5000/api";
+const api = axios.create({ baseURL: import.meta.env.VITE_API_URL || DEFAULT_API_URL });
 
 api.interceptors.request.use((config) => {
   const token = getToken();

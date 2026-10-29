@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import {
-  BED_BASED_TYPES, FURNISHINGS, GENDERS, MAX_PROPERTY_IMAGES, OCCUPANCY, PROPERTY_TYPES, VERIFICATION_STATUSES, WASHROOMS,
+  BED_BASED_TYPES, FURNISHINGS, GENDERS, LISTING_FEE_CURRENCY, LISTING_FEES, MAX_PROPERTY_IMAGES, OCCUPANCY, PAYMENT_STATUSES,
+  PROPERTY_TYPES, VERIFICATION_STATUSES, WASHROOMS,
 } from "../utils/constants.js";
 import { escapeRegex } from "../utils/validators.js";
 
@@ -19,6 +20,19 @@ const pointSchema = new mongoose.Schema(
   { _id: false }
 );
 
+// One-time listing fee paid through Stripe Checkout. Amount is in whole Taka.
+const paymentSchema = new mongoose.Schema(
+  {
+    status: { type: String, enum: PAYMENT_STATUSES, default: "unpaid" },
+    amount: { type: Number, default: 0 },
+    currency: { type: String, default: LISTING_FEE_CURRENCY },
+    checkoutSessionId: { type: String, default: "" },
+    paymentIntentId: { type: String, default: "" },
+    paidAt: Date,
+  },
+  { _id: false }
+);
+
 const count = (label, min) => ({
   type: Number,
   min: [min, `${label} cannot be less than ${min}`],
@@ -33,6 +47,10 @@ function toClient(doc, ret) {
   ret.owner = owner ? { id: String(owner._id), name: owner.name, phone: owner.phone, verified: owner.isVerified } : undefined;
   ret.status = ret.verificationStatus;
   if (ret.availableFrom instanceof Date) ret.availableFrom = ret.availableFrom.toISOString().slice(0, 10);
+  // Stripe ids stay on the server; clients only need to know whether the fee is paid.
+  const payment = ret.payment || {};
+  ret.payment = { status: payment.status || "unpaid", amount: payment.amount || 0, currency: payment.currency, paidAt: payment.paidAt };
+  ret.listingFee = LISTING_FEES[ret.type];
   delete ret._id;
   delete ret.__v;
   return ret;
@@ -77,6 +95,7 @@ const propertySchema = new mongoose.Schema(
     isPublished: { type: Boolean, default: false },
     verified: { type: Boolean, default: false },
     rejectionReason: { type: String, default: "" },
+    payment: { type: paymentSchema, default: () => ({}) },
   },
   { timestamps: true, toJSON: { versionKey: false, transform: toClient } }
 );
@@ -95,6 +114,14 @@ propertySchema.statics.OWNER_FIELDS = [
 ];
 
 propertySchema.statics.PUBLIC_FILTER = Object.freeze({ isPublished: true, verificationStatus: "approved" });
+
+// The admin review queue only holds listings whose fee is paid.
+propertySchema.statics.REVIEW_QUEUE_FILTER = Object.freeze({
+  verificationStatus: { $in: ["pending", "changes-requested"] },
+  "payment.status": "paid",
+});
+
+propertySchema.statics.listingFeeFor = (type) => LISTING_FEES[type];
 
 const SORTS = {
   newest: { createdAt: -1 },
@@ -194,6 +221,35 @@ propertySchema.methods.applyAvailability = function applyAvailability({ occupanc
   if (occupancy !== undefined) this.occupancy = occupancy;
   if (availableBeds !== undefined) this.availableBeds = Number(availableBeds);
   this.availabilityLastConfirmed = new Date();
+};
+
+propertySchema.methods.listingFee = function listingFee() {
+  return LISTING_FEES[this.type];
+};
+
+propertySchema.methods.isPaid = function isPaid() {
+  return this.payment?.status === "paid";
+};
+
+// The fee depends on the type, so a paid listing cannot switch to a different (possibly pricier) type.
+propertySchema.pre("validate", function lockPaidType() {
+  if (!this.isNew && this.isModified("type") && this.isPaid()) {
+    this.invalidate("type", "Property type cannot be changed after the listing fee is paid");
+  }
+});
+
+// Safe to call twice (redirect and webhook can both confirm the same payment).
+propertySchema.methods.markPaid = function markPaid({ checkoutSessionId, paymentIntentId, amount }) {
+  if (this.isPaid()) return false;
+  this.payment = {
+    status: "paid",
+    amount,
+    currency: LISTING_FEE_CURRENCY,
+    checkoutSessionId,
+    paymentIntentId: paymentIntentId || "",
+    paidAt: new Date(),
+  };
+  return true;
 };
 
 export default mongoose.model("Property", propertySchema);

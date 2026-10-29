@@ -139,6 +139,49 @@ or `{ "availableBeds": 2 }`. Does not trigger a new review. Updates `availabilit
 
 Store the `url` values in the property's `images`. Errors: `400` no files, wrong type or too large; `403` not an owner.
 
+## Listing fee payments (Stripe)
+
+Each new listing needs a one-time fee before an admin can review it. The fee depends on the property type and is set in `src/utils/constants.js` (`LISTING_FEES`):
+
+| Type | Fee |
+| --- | --- |
+| `bed` | ৳100 |
+| `shared-room` | ৳150 |
+| `single-room` | ৳200 |
+| `full-flat` | ৳500 |
+
+Flow: `POST /properties` saves the listing with `payment.status: "unpaid"` → `POST /payments/checkout` returns a Stripe Checkout URL → the owner pays on Stripe → Stripe redirects to `/owner/payment/success?session_id=…` → the frontend calls `POST /payments/confirm` → the server checks the session with Stripe and marks the listing paid. Only paid listings appear in `GET /admin/properties/pending`, and approving an unpaid listing returns `400`. Edits after payment are free, but the property `type` can no longer be changed.
+
+Every property in responses includes `listingFee` and `payment: { status, amount, currency, paidAt }`. Stripe session ids are never sent to clients.
+
+Settings in `.env`: `STRIPE_SE_KEY` (secret key, required for payments), `STRIPE_PUB_KEY`, and optional `STRIPE_WEBHOOK_SECRET`. Without `STRIPE_SE_KEY` the API still runs, but payment endpoints return `503`.
+
+### GET /payments/fees (public)
+
+`{ "currency": "bdt", "fees": { "bed": 100, "shared-room": 150, "single-room": 200, "full-flat": 500 }, "testMode": true }`
+
+### POST /payments/checkout (owner)
+
+```json
+{ "propertyId": "…" }
+```
+
+`201`: `{ "message": "Checkout started", "url": "https://checkout.stripe.com/…", "sessionId": "cs_test_…", "amount": 200, "currency": "bdt" }`. Send the browser to `url`. Errors: `400` already paid; `401`/`403`; `404` not your listing.
+
+### POST /payments/confirm (owner)
+
+```json
+{ "sessionId": "cs_test_…" }
+```
+
+`200` returns `{ message, property }` with `payment.status: "paid"`. Safe to call more than once. Errors: `400` payment not completed or no `sessionId`; `404` unknown session or another owner's session.
+
+### POST /payments/webhook (Stripe only)
+
+Optional backup for owners who close the tab before returning to the site. In the Stripe dashboard add an endpoint `https://<your-backend>/api/payments/webhook` for the `checkout.session.completed` event and put its signing secret in `STRIPE_WEBHOOK_SECRET`. Calls without a valid Stripe signature are rejected.
+
+**Test card** (test mode only): `4242 4242 4242 4242`, any future expiry, any CVC.
+
 ## Test checklist
 
 Run `npm run seed` first. Every item below was checked against a running server.

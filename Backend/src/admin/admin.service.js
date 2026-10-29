@@ -8,7 +8,7 @@ const REVIEW_DECISIONS = ["approved", "rejected", "changes-requested"];
 
 export async function getDashboardStats() {
   const [pendingProperties, ownerCount, consumerCount, openReports, bookingCount, approvedProperties] = await Promise.all([
-    Property.countDocuments({ verificationStatus: "pending" }),
+    Property.countDocuments({ ...Property.REVIEW_QUEUE_FILTER, verificationStatus: "pending" }),
     User.countDocuments({ role: "user" }),
     User.countDocuments({ role: "consumer" }),
     Report.countDocuments({ status: { $in: ["open", "reviewing"] } }),
@@ -19,7 +19,7 @@ export async function getDashboardStats() {
 }
 
 export const listPendingProperties = () =>
-  Property.find({ verificationStatus: { $in: ["pending", "changes-requested"] } })
+  Property.find(Property.REVIEW_QUEUE_FILTER)
     .populate("owner", "name email phone isVerified")
     .sort({ createdAt: 1 });
 
@@ -27,6 +27,7 @@ export async function reviewProperty(id, { decision, reason } = {}) {
   if (!REVIEW_DECISIONS.includes(decision)) throw ApiError.badRequest("Invalid decision");
   const property = await Property.findById(id);
   if (!property) throw ApiError.notFound("Property not found");
+  if (decision === "approved" && !property.isPaid()) throw ApiError.badRequest("The listing fee for this property has not been paid");
 
   property.verificationStatus = decision;
   property.isPublished = decision === "approved";

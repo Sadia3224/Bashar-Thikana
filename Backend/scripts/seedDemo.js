@@ -5,6 +5,7 @@ import Property from "../src/models/Property.js";
 import Booking from "../src/models/Booking.js";
 import Report from "../src/models/Report.js";
 import Notification from "../src/models/Notification.js";
+import { LISTING_FEES } from "../src/utils/constants.js";
 
 const photo = (id) => `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=1200&q=70`;
 const daysFromNow = (days) => new Date(Date.now() + days * 86400000);
@@ -96,7 +97,9 @@ async function run() {
       },
     ];
 
-    const [nasirabad, gec, khulshi] = await Property.create(propertyData);
+    // Demo listings count as already paid, so they show up in search and the admin review queue.
+    const paid = (p) => ({ ...p, payment: { status: "paid", amount: LISTING_FEES[p.type], paidAt: new Date() } });
+    const [nasirabad, gec, khulshi] = await Property.create(propertyData.map(paid));
 
     await Booking.create([
       { consumer: consumer._id, property: nasirabad._id, requestType: "visit", status: "requested", moveInDate: daysFromNow(8), message: "Can I visit after 5 PM?" },

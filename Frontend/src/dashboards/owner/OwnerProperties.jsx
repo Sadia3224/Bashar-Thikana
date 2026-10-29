@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
-import { BadgeCheck, Building2, Eye, Pencil, Plus, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { BadgeCheck, Building2, CreditCard, Eye, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import PageHeader, { Tabs } from "../../components/PageHeader";
 import EmptyState from "../../components/EmptyState";
 import StatusBadge from "../../components/StatusBadge";
@@ -14,10 +14,31 @@ import { capacityText, formatBDT } from "../../utils/format";
 
 export default function OwnerProperties() {
   const { user } = useAuth();
-  const { properties, setOccupancy, deleteProperty } = useProperties();
+  const { properties, setOccupancy, deleteProperty, payListingFee } = useProperties();
   const { notify } = useToast();
   const [tab, setTab] = useState("all");
   const [deleting, setDeleting] = useState(null);
+  const [paying, setPaying] = useState(null);
+  const [params, setParams] = useSearchParams();
+
+  // Stripe sends the owner back with ?payment=cancelled when they leave the payment page.
+  useEffect(() => {
+    if (params.get("payment") !== "cancelled") return;
+    notify("Payment cancelled. The listing is saved; pay any time to send it for review.", "info");
+    setParams({}, { replace: true });
+  }, [params, setParams, notify]);
+
+  const pay = async (property) => {
+    setPaying(property.id);
+    try {
+      await payListingFee(property.id);
+    } catch (error) {
+      notify(error.message, "error");
+      setPaying(null);
+    }
+  };
+
+  const isUnpaid = (p) => p.payment?.status !== "paid";
 
   // Owners only ever see their own listings.
   const mine = properties.filter((p) => p.ownerId === user.id);
@@ -59,7 +80,7 @@ export default function OwnerProperties() {
                   <PropertyImage src={p.images[0]} alt="" className="listing-thumb" />
                   <div className="listing-info">
                     <div className="listing-badges">
-                      <StatusBadge status={p.status} />
+                      {isUnpaid(p) ? <StatusBadge status="pending" label="Awaiting payment" /> : <StatusBadge status={p.status} />}
                       {p.verified && (
                         <span className="pill pill-verified pill-sm">
                           <BadgeCheck size={13} aria-hidden="true" /> Verified
@@ -72,6 +93,12 @@ export default function OwnerProperties() {
                     </p>
                     <p className="listing-rent">{formatBDT(p.rent)} <span className="muted">/ month</span></p>
                     {p.status === "rejected" && p.rejectionReason && <p className="listing-reason">Admin note: {p.rejectionReason}</p>}
+                    {isUnpaid(p) && (
+                      <button type="button" className="btn btn-primary btn-sm listing-pay" onClick={() => pay(p)} disabled={paying === p.id}>
+                        {paying === p.id ? <Loader2 size={16} className="spin" aria-hidden="true" /> : <CreditCard size={16} aria-hidden="true" />}
+                        Pay {formatBDT(p.listingFee)} listing fee
+                      </button>
+                    )}
                   </div>
                   <div className="listing-controls">
                     <label className="switch">
